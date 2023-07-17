@@ -6,17 +6,51 @@ import websocket
 discord = "wss://gateway.discord.gg"
 ws = websocket.WebSocket()
 
-async def establish_connection():
-    gateway_pointer = f"{discord}/gateway/bot"
+def gateway_hello():
+    gateway_pointer = f"{discord}/gateway"
     ws.connect(gateway_pointer)
 
     recv = json.loads(ws.recv())
     heartbeat = recv["d"]["heartbeat_interval"]
-    print(f"recieved opcode: {recv['op']} | Heartbeat: {heartbeat}ms")
+    print(f"opcode : {recv['op']} | Heartbeat: {heartbeat}ms")
     print(recv)
 
-    if recv["op"] == 10: # opcode 10 (hello)
-        pass
+    return recv
+
+def gateway_send(dump):
+    ws.send(json.dumps(dump))
+    
+async def ws_heartbeat(hello, heartbeat):
+    print(f"Beginning heartbeat ({heartbeat})")
+
+    dump = {
+        "op" : 1,
+        "d" : "null"
+    }
+
+    while True:
+        print(ws.recv())
+        await asyncio.sleep(1)
+       
+        gateway_send(dump)
+
+        print("Heartbeat sent")
+
+
+
+
+async def establish_connection():
+    hello = gateway_hello()
+
+    if hello["op"] != 10: # if not opcode 10 (hello)
+        return 0
+    
+    heartbeat = hello["d"]["heartbeat_interval"] / 1000
+    await ws_heartbeat(hello, heartbeat)
+
+
+    
+        
 
 
 class main():
