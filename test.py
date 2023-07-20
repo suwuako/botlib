@@ -1,4 +1,5 @@
 import requests
+import time
 import json
 import asyncio
 import websocket
@@ -20,7 +21,7 @@ def gateway_hello():
 def gateway_send(dump):
     ws.send(json.dumps(dump))
     
-async def ws_heartbeat(hello, heartbeat):
+async def ws_heartbeat(heartbeat):
     print(f"Beginning heartbeat ({heartbeat})")
 
     dump = {
@@ -28,22 +29,27 @@ async def ws_heartbeat(hello, heartbeat):
         "d" : "null"
     }
 
-    print(1)
-    print(ws.recv())
-    print(ws.recv_data())
     while True:
-        print(ws.recv())
-        await asyncio.sleep(1)
-       
+        print("sending heartbeat...")
         gateway_send(dump)
+        
+        heartbeat_ack = json.loads(ws.recv())
 
-        print("Heartbeat sent")
+        if heartbeat_ack["op"] != 11:
+            print("HELP HELP HELP heartbeat not 11? breaking")
+            break
 
+        print(f"Heartbeat sent successfully! opcode {heartbeat_ack['op']}")
+        time.sleep(heartbeat)
 
-async def establish_connection():
+async def identify():
+    pass
+
+def establish_connection():
     hello = gateway_hello()
 
     if hello["op"] != 10: # if not opcode 10 (hello)
+        print("opcode not 10?")
         return 0
     
     heartbeat = hello["d"]["heartbeat_interval"] / 1000
@@ -52,14 +58,21 @@ async def establish_connection():
 
 class main():
     def __init__(self) -> None:
+        tokenfile = open("supersecret.json", "r")
+        self.token = json.load(tokenfile)
+        print(self.token)
         pass
 
     def run(self):
         print("Hello World!")
-        hello = asyncio.run(establish_connection())
-        loop.run_until_complete(ws_heartbeat(hello[0], hello[1]))
+        hello = establish_connection()
+
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(ws_heartbeat(hello[1]))
+
+        loop.run_forever()
+
         pass
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
     main().run()
